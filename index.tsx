@@ -7,18 +7,14 @@
 import definePlugin, { OptionType } from '@utils/types';
 import { showNotification } from "@api/Notifications";
 import { definePluginSettings } from '@api/Settings';
-import { ModalContent, ModalFooter, ModalHeader, ModalRoot, openModal } from "@utils/modal";
-import { Button, Forms, TextArea } from "@webpack/common";
-
-let lastHeartbeatAt = 0;
 
 const settings = definePluginSettings({
     apiKey: {
         type: OptionType.STRING,
         description: 'API Key for wakatime',
-        default: 'CHANGEME',
+        default: '',
         isValid: (e: string) => {
-            if (e === "CHANGEME") return "Invalid Key: Please change the default API Key";
+            if (!e) return "Invalid Key: Please change the default API Key";
             if (!e.startsWith("waka_")) return "Invalid Key: Key must start with 'waka_'";
             return true;
         },
@@ -40,45 +36,13 @@ const settings = definePluginSettings({
     },
 });
 
-function enoughTimePassed() {
-    return lastHeartbeatAt + 120000 < Date.now();
-}
-
 async function sendHeartbeat(time) {
     const key = settings.store.apiKey;
-    if (!key || key === 'CHANGEME') {
+    if (!key) {
         showNotification({
             title: "WakaTime",
             body: "No api key for wakatime is setup.",
             color: "var(--red-360)",
-            // onClick: () => {
-            //     openModal(modalProps => (
-            //         <ModalRoot {...modalProps}>
-            //             <ModalHeader >
-            //                 <Forms.FormTitle tag="h4">Theme Source</Forms.FormTitle>
-            //             </ModalHeader>
-            //             <ModalContent>
-            //                 <Forms.FormText style={{
-            //                     padding: "5px",
-            //                 }}>
-            //     <TextArea onChange={setting}>
-
-            //     </TextArea>
-            //                 </Forms.FormText>
-            //             </ModalContent>
-            //             <ModalFooter>
-            //                 <Button
-            //                     color={Button.Colors.RED}
-            //                     look={Button.Looks.OUTLINED}
-            //                     onClick={() => modalProps.onClose()}
-            //                 >
-            //                     Close
-            //                 </Button>
-            //             </ModalFooter>
-            //         </ModalRoot>
-            //     ));
-            // },
-            // dismissOnClick: false
         });
 
         return;
@@ -111,16 +75,9 @@ async function sendHeartbeat(time) {
     if (response.status < 200 || response.status >= 300) console.warn(`WakaTime API Error ${response.status}: ${data}`);
 }
 
-async function handleAction() {
-    const time = Date.now();
-    if (!enoughTimePassed()) return;
-    lastHeartbeatAt = time;
-    await sendHeartbeat(time);
-}
-
 export default definePlugin({
-    name: 'wakatime',
-    description: 'Wakatime plugin',
+    name: 'Wakatime',
+    description: 'Fully automatic code stats via Wakatime',
     authors: [
         {
             id: 566766267046821888n,
@@ -128,18 +85,13 @@ export default definePlugin({
         },
     ],
     settings,
-    // It might be likely you could delete these and go make patches above!
     start() {
-        console.log('Initializing WakaTime plugin v');
-        // if (readSetting(this.homeDirectory() + '/.wakatime.cfg', 'settings', 'debug') == 'true') {
-        //   this.debug = true;
-        //   console.log('WakaTime debug mode enabled');
-        // }
-        this.handler = handleAction.bind(this);
-        document.addEventListener('click', this.handler);
+        this.updateInterval = setInterval(async () => {
+            const time = Date.now();
+            await sendHeartbeat(time);
+        }, 120000);
     },
     stop() {
-        console.log('Unloading WakaTime plugin');
-        document.removeEventListener('click', this.handler);
+        clearInterval(this.updateInterval);
     },
 });
