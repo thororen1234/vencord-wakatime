@@ -5,7 +5,6 @@
  */
 
 import definePlugin, { OptionType } from "@utils/types";
-import { showNotification } from "@api/Notifications";
 import { definePluginSettings } from "@api/Settings";
 
 const settings = definePluginSettings({
@@ -38,6 +37,8 @@ const settings = definePluginSettings({
 async function sendHeartbeat() {
     const time = Date.now();
     const { debug, apiKey, machineName, projectName } = settings.store
+
+    if (!apiKey) return;
 
     if (debug) console.log("Sending heartbeat to WakaTime API.");
 
